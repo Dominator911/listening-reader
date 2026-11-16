@@ -3,7 +3,7 @@ import { db, deleteBook, type BookRecord } from '../db';
 import { importBook } from '../library/importBook';
 import { getPrefs } from '../prefs';
 import { More, Plus } from './icons';
-import { useLive, useObjectUrl } from './useLive';
+import { useCoverUrl, useLive } from './useLive';
 
 interface Job {
   name: string;
@@ -99,7 +99,7 @@ export function Library({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 function BookRow({ book, onOpen, menuOpen, setMenu }: { book: BookRecord; onOpen: () => void; menuOpen: boolean; setMenu: (o: boolean) => void }) {
-  const cover = useObjectUrl(book.cover);
+  const cover = useCoverUrl(book);
   const pct = Math.round(book.progress * 100);
   return (
     <li className="book">

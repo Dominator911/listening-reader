@@ -29,10 +29,21 @@ export async function importBook(file: File, onProgress?: (msg: string) => void,
   const id = await fileId(data);
   const book = await parseFile(file, { onProgress: (d, n) => onProgress?.(`Extracting text: page ${d} of ${n}`) });
   onProgress?.('Finding chapters…');
-  return saveParsed(id, file, book, defaultRate);
+  return saveParsed(id, file, book, defaultRate, data);
 }
 
-export async function saveParsed(id: string, file: File | { name: string; size: number }, book: ParsedBook, defaultRate = 1): Promise<ImportResult> {
+/**
+ * Store a parsed book. Everything binary goes into IndexedDB as an ArrayBuffer, never as a
+ * Blob/File: WebKit (Safari and every iPhone browser) rejects Blobs with
+ * "Error preparing Blob/File data to be stored in object store".
+ */
+export async function saveParsed(
+  id: string,
+  file: { name: string; size: number },
+  book: ParsedBook,
+  defaultRate = 1,
+  original?: ArrayBuffer,
+): Promise<ImportResult> {
   const content = buildContent(book);
   const existing = await db.books.get(id);
   let unreadable: string | undefined;
@@ -49,7 +60,7 @@ export async function saveParsed(id: string, file: File | { name: string; size: 
     fileSize: file.size,
     addedAt: existing?.addedAt ?? Date.now(),
     openedAt: existing?.openedAt,
-    cover: book.cover,
+    ...(book.cover ? { coverBytes: await book.cover.arrayBuffer(), coverType: book.cover.type || 'image/jpeg' } : {}),
     chapterCount: content.chapters.length,
     warnings: [...new Set([...book.warnings, ...content.warnings])],
     rate: existing?.rate ?? defaultRate,
@@ -62,7 +73,7 @@ export async function saveParsed(id: string, file: File | { name: string; size: 
   await db.transaction('rw', [db.books, db.content, db.files], async () => {
     await db.books.put(record);
     await db.content.put({ id, content });
-    if (file instanceof File) await db.files.put({ id, blob: file });
+    if (original) await db.files.put({ id, data: original });
   });
   void requestPersistence();
   return { id, title: record.title, replaced: !!existing, unreadable };
@@ -72,8 +83,10 @@ export async function saveParsed(id: string, file: File | { name: string; size: 
 export async function reprocessBook(id: string): Promise<void> {
   const f = await db.files.get(id);
   const rec = await db.books.get(id);
-  if (!f || !rec) throw new Error('The original file is not stored for this book; import it again.');
-  const file = new File([f.blob], rec.fileName);
+  const bytes = f?.data ?? (await f?.blob?.arrayBuffer());
+  if (!bytes || !rec) throw new Error('The original file is not stored for this book; import it again.');
+  const file = new File([bytes], rec.fileName);
   const book = await parseFile(file);
-  await saveParsed(id, file, book, rec.rate);
+  // Re-save the original as bytes too, which also migrates older Blob-based records.
+  await saveParsed(id, file, book, rec.rate, bytes);
 }

@@ -13,6 +13,13 @@ export interface BookRecord {
   fileSize: number;
   addedAt: number;
   openedAt?: number;
+  /**
+   * Cover image as raw bytes. Stored as an ArrayBuffer, not a Blob: Safari/WebKit (every iPhone
+   * browser) fails with "Error preparing Blob/File data to be stored" when Blobs go into IndexedDB.
+   */
+  coverBytes?: ArrayBuffer;
+  coverType?: string;
+  /** Legacy (v1 imports made in Chrome): cover stored as a Blob. */
   cover?: Blob;
   chapterCount: number;
   warnings: string[];
@@ -34,7 +41,16 @@ export interface ContentRecord {
 
 export interface FileRecord {
   id: string;
-  blob: Blob;
+  /** Original file bytes (ArrayBuffer for the same WebKit reason as covers). */
+  data?: ArrayBuffer;
+  /** Legacy (v1 imports made in Chrome). */
+  blob?: Blob;
+}
+
+/** The cover as a Blob for display, whichever way it was stored. */
+export function coverBlob(b: Pick<BookRecord, 'cover' | 'coverBytes' | 'coverType'>): Blob | undefined {
+  if (b.coverBytes) return new Blob([b.coverBytes], { type: b.coverType ?? 'image/jpeg' });
+  return b.cover;
 }
 
 export interface Bookmark {

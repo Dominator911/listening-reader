@@ -13,7 +13,7 @@ import * as I from './icons';
 import { PlayerBar } from './PlayerBar';
 import { ReadingView } from './ReadingView';
 import { Settings } from './Settings';
-import { useObjectUrl } from './useLive';
+import { useCoverUrl } from './useLive';
 
 export function Reader({ bookId, onBack }: { bookId: string; onBack: () => void }) {
   const [book, setBook] = useState<BookRecord>();
@@ -81,7 +81,7 @@ function ReaderInner({ book, initialContent, onBack }: { book: BookRecord; initi
   const [toast, setToast] = useState<string>();
   const voices = useVoices();
   const voice = voices.find((v) => v.voiceURI === prefs.voiceURI) ?? voices.find((v) => v.default) ?? voices[0];
-  const cover = useObjectUrl(book.cover);
+  const cover = useCoverUrl(book);
   const chapterProgress = useRef<number[]>(book.chapterProgress ?? []);
   const [, bump] = useState(0);
 

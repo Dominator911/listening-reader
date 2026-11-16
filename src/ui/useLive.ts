@@ -1,5 +1,6 @@
 import { liveQuery } from 'dexie';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { coverBlob, type BookRecord } from '../db';
 
 /** Subscribe to a Dexie query; re-runs whenever the tables it reads change. */
 export function useLive<T>(query: () => Promise<T>, deps: unknown[]): T | undefined {
@@ -10,6 +11,13 @@ export function useLive<T>(query: () => Promise<T>, deps: unknown[]): T | undefi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
   return value;
+}
+
+/** Object URL for a book's cover, however it was stored. */
+export function useCoverUrl(book: Pick<BookRecord, 'id' | 'cover' | 'coverBytes' | 'coverType'>): string | undefined {
+  // Key on the id: live queries hand back fresh objects on every change, but a cover never changes.
+  const blob = useMemo(() => coverBlob(book), [book.id, !!book.coverBytes, !!book.cover]); // eslint-disable-line react-hooks/exhaustive-deps
+  return useObjectUrl(blob);
 }
 
 /** Object URL for a blob, revoked when it changes or the component unmounts. */
