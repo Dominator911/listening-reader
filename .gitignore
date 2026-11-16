@@ -1,0 +1,9 @@
+node_modules
+dist
+test-books/*
+!test-books/README.md
+*.local
+
+# Local editor/launcher config (contains machine paths)
+.claude/
+.DS_Store
